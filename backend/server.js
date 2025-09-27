@@ -33,24 +33,62 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   }
-});
+}); 
+
+
 
 // socket service init
 socketService.init(io);
 
+// In backend/server.js - UPDATE the existing socket handler
 io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
-
-  socket.on('subscribe_location', ({ lat, lng }) => {
-    const room = `${lat}_${lng}`;
+  console.log(`Client connected: ${socket.id}`);
+  
+  socket.on('subscribe_location', (location) => {
+    // Create room name with 3 decimal precision
+    const lat = parseFloat(location.lat).toFixed(3);
+    const lng = parseFloat(location.lng).toFixed(3);
+    const room = `location_${lat}_${lng}`;
+    
     socket.join(room);
-    console.log(`Socket ${socket.id} joined ${room}`);
+    console.log(`Client ${socket.id} subscribed to ${room}`);
+    
+    // Send immediate update for this location if available
+    socket.emit('location_subscribed', {
+      room: room,
+      coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
+      message: 'Successfully subscribed to location updates'
+    });
+  });
+
+  socket.on('unsubscribe_location', (location) => {
+    const lat = parseFloat(location.lat).toFixed(3);
+    const lng = parseFloat(location.lng).toFixed(3);
+    const room = `location_${lat}_${lng}`;
+    
+    socket.leave(room);
+    console.log(`Client ${socket.id} unsubscribed from ${room}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+    console.log(`Client disconnected: ${socket.id}`);
   });
 });
+
+
+// Example to emit updates to specific locations (with simplified spatial grouping)
+function emitAQIUpdateToLocations(io, aqiData) {
+  aqiData.forEach((point) => {
+    const lat = point.location.coordinates[1].toFixed(3);
+    const lng = point.location.coordinates[0].toFixed(3);
+    const room = `location_${lat}_${lng}`;
+
+    io.to(room).emit('realtime_update', {
+      aqi_data: [point],
+      timestamp: new Date(),
+    });
+  });
+}
 
 // demo emitter
 setInterval(() => {

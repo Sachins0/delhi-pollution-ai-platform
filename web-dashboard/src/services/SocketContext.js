@@ -53,11 +53,22 @@ export const SocketProvider = ({ children }) => {
     };
   }, []);
 
-  const subscribeToLocation = (latitude, longitude) => {
+    const subscribeToLocation = (latitude, longitude) => {
     if (socket) {
-      socket.emit('subscribe_location', { lat: latitude, lng: longitude });
+      // Unsubscribe from previous location if any
+      if (window.currentSubscription) {
+        socket.emit('unsubscribe_location', window.currentSubscription);
+      }
+      
+      // Subscribe to new location
+      const location = { lat: latitude, lng: longitude };
+      socket.emit('subscribe_location', location);
+      window.currentSubscription = location;
+      
+      console.log(`Subscribed to location updates: ${latitude}, ${longitude}`);
     }
   };
+
 
   const value = {
     socket,

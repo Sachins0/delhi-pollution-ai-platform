@@ -1,18 +1,19 @@
- import numpy as np
- import pandas as pd
- from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
- from sklearn.preprocessing import StandardScaler, LabelEncoder
- from sklearn.model_selection import train_test_split, cross_val_score
- from sklearn.metrics import classification_report, accuracy_score, r2_score
- import xgboost as xgb
- import lightgbm as lgb
- import joblib
- import asyncio
- from datetime import datetime, timedelta
- from typing import List, Tuple, Dict, Any, Optional
- import warnings
- warnings.filterwarnings('ignore')
- class AdvancedSourceIdentifier:
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import classification_report, accuracy_score, r2_score
+import xgboost as xgb
+import lightgbm as lgb
+import joblib
+import asyncio
+from datetime import datetime, timedelta
+from typing import List, Tuple, Dict, Any, Optional
+import warnings
+warnings.filterwarnings('ignore')
+
+class AdvancedSourceIdentifier:
     def __init__(self):
         self.models = {
             'source_classifier': None,
@@ -24,7 +25,6 @@
             'satellite': StandardScaler()
         }
         self.label_encoder = LabelEncoder()
- Advanced Source Identification Model
         self.feature_importance = {}
         self.is_trained = False
         self.version = "2.0.0"
@@ -49,8 +49,9 @@
             'domestic', 'power_plant', 'waste_burning', 'dust_storm',
             'airport', 'biomass_burning', 'fireworks'
         ]
+
     def create_enhanced_training_data(self, n_samples=50000):
-        """Generate sophisticated synthetic training data based on real Delhi-NCR pattern
+        """Generate sophisticated synthetic training data based on real Delhi-NCR patterns"""
         np.random.seed(42)
         
         print(f"Generating {n_samples} training samples...")
@@ -72,7 +73,7 @@
             elevation = np.random.uniform(200, 250)  # Delhi elevation
             
             # Satellite features
-            aod_550nm = np.random.lognormal(mean=-0.5, sigma=0.8)  # Aerosol Optical Dept
+            aod_550nm = np.random.lognormal(mean=-0.5, sigma=0.8)  # Aerosol Optical Depth
             aod_470nm = aod_550nm * (1 + np.random.normal(0, 0.1))
             angstrom_exponent = np.random.uniform(0.5, 2.0)  # Particle size indicator
             
@@ -82,15 +83,15 @@
             fire_count_5km = np.random.poisson(2)
             
             # Meteorological features
-            temperature = 25 + 15 * np.sin(2 * np.pi * (month - 1) / 12) + np.random.norm
-            humidity = 60 + 20 * np.sin(2 * np.pi * (month - 1) / 12) + np.random.normal(
+            temperature = 25 + 15 * np.sin(2 * np.pi * (month - 1) / 12) + np.random.normal(0, 5)
+            humidity = 60 + 20 * np.sin(2 * np.pi * (month - 1) / 12) + np.random.normal(0, 10)
             humidity = np.clip(humidity, 10, 95)
             
             wind_speed = np.random.gamma(2, 2)
             wind_direction = np.random.uniform(0, 360)
             boundary_layer_height = np.random.uniform(200, 2000)
             pressure = np.random.normal(1013, 10)
-            precipitation = np.random.exponential(2) if month in [6, 7, 8, 9] else np.ran
+            precipitation = np.random.exponential(2) if month in [6, 7, 8, 9] else np.random.exponential(0.5)
             
             # Geographic context features
             population_density = self.calculate_population_density(latitude, longitude)
@@ -113,17 +114,17 @@
             
             # Create feature vector
             features = {
-                'hour': hour, 'day_of_week': day_of_week, 'month': month, 'season': seaso
+                'hour': hour, 'day_of_week': day_of_week, 'month': month, 'season': season,
                 'latitude': latitude, 'longitude': longitude, 'elevation': elevation,
-                'aod_550nm': aod_550nm, 'aod_470nm': aod_470nm, 'angstrom_exponent': angs
-                'fire_radiative_power': fire_radiative_power, 'fire_confidence': fire_con
-                'fire_count_5km': fire_count_5km, 'temperature': temperature, 'humidity':
+                'aod_550nm': aod_550nm, 'aod_470nm': aod_470nm, 'angstrom_exponent': angstrom_exponent,
+                'fire_radiative_power': fire_radiative_power, 'fire_confidence': fire_confidence,
+                'fire_count_5km': fire_count_5km, 'temperature': temperature, 'humidity': humidity,
                 'wind_speed': wind_speed, 'wind_direction': wind_direction,
                 'boundary_layer_height': boundary_layer_height, 'pressure': pressure,
                 'precipitation': precipitation, 'population_density': population_density,
                 'road_density': road_density, 'industrial_density': industrial_density,
-                'distance_to_highway': distance_to_highway, 'distance_to_industrial': dis
-                'distance_to_airport': distance_to_airport, 'pm25_background': pm25_backg
+                'distance_to_highway': distance_to_highway, 'distance_to_industrial': distance_to_industrial,
+                'distance_to_airport': distance_to_airport, 'pm25_background': pm25_background,
                 'pm10_background': pm10_background, 'no2_background': no2_background,
                 'seasonal_pattern': seasonal_pattern, 'weekend_factor': weekend_factor,
                 'rush_hour_factor': rush_hour_factor
@@ -141,6 +142,7 @@
             data.append(features)
         
         return pd.DataFrame(data)
+
     def generate_labels(self, features):
         """Generate realistic labels based on feature combinations"""
         # Initialize probabilities for each source type
@@ -162,7 +164,7 @@
             source_probs['vehicular'] = min(0.9, base_vehicular)
         
         # Industrial emissions logic
-        if features['distance_to_industrial'] < 3 and features['industrial_density'] > 0.
+        if features['distance_to_industrial'] < 3 and features['industrial_density'] > 0.5:
             source_probs['industrial'] = 0.5 + features['industrial_density'] * 0.3
             if features['hour'] in range(6, 22):  # Operating hours
                 source_probs['industrial'] += 0.2
@@ -178,11 +180,11 @@
                 source_probs['dust_storm'] = 0.3 + (features['wind_speed'] - 8) * 0.05
         
         # Power plant logic
-        if features['distance_to_industrial'] < 5 and features['so2_background'] > np.exp
+        if features['distance_to_industrial'] < 5 and features['so2_background'] > np.exp(3.2):
             source_probs['power_plant'] = 0.3 + features['industrial_density'] * 0.2
         
         # Domestic heating (winter months)
-        if features['month'] in [11, 12, 1, 2] and features['hour'] in [6, 7, 18, 19, 20]
+        if features['month'] in [11, 12, 1, 2] and features['hour'] in [6, 7, 18, 19, 20]:
             source_probs['domestic'] = 0.2 + (1 / (features['temperature'] + 10)) * 0.3
         
         # Airport emissions
@@ -214,7 +216,7 @@
         if source_type == 'stubble_burning':
             intensity = base_intensity + features['fire_radiative_power'] * 2
         elif source_type == 'vehicular':
-            intensity = base_intensity + (1 / (features['distance_to_highway'] + 0.1)) * 
+            intensity = base_intensity + (1 / (features['distance_to_highway'] + 0.1)) * 50
         elif source_type == 'industrial':
             intensity = base_intensity + features['industrial_density'] * 100
         else:
@@ -237,7 +239,7 @@
         
         # Calculate confidence based on signal strength and data quality
         confidence = max_prob * 0.8
-        if features['fire_confidence'] > 80 and source_type in ['stubble_burning', 'waste
+        if features['fire_confidence'] > 80 and source_type in ['stubble_burning', 'waste_burning']:
             confidence += 0.15
         if features['aod_550nm'] > 1.0:
             confidence += 0.1
@@ -245,6 +247,7 @@
         confidence = np.clip(confidence, 0.1, 0.95)
         
         return source_type, intensity, confidence
+
     def get_season(self, month):
         """Convert month to season"""
         if month in [12, 1, 2]:
@@ -255,6 +258,7 @@
             return 2  # Monsoon
         else:
             return 3  # Post-monsoon
+
     def get_seasonal_pollution_factor(self, month):
         """Get seasonal pollution multiplication factor"""
         # Higher pollution in winter months
@@ -263,29 +267,35 @@
             7: 0.6, 8: 0.6, 9: 0.8, 10: 1.2, 11: 1.4, 12: 1.5
         }
         return factors.get(month, 1.0)
+
     def calculate_population_density(self, lat, lng):
         """Calculate population density based on location"""
         # Delhi city center has highest density
         center_distance = np.sqrt((lat - 28.6139)**2 + (lng - 77.2090)**2)
         return max(0.1, 1.0 - center_distance * 2)
+
     def calculate_road_density(self, lat, lng):
         """Calculate road network density"""
         # Higher near major highways
         return 0.5 + np.random.random() * 0.5
+
     def calculate_industrial_density(self, lat, lng):
         """Calculate industrial area density"""
         # Industrial clusters in specific areas
         if 28.5 <= lat <= 28.7 and 77.0 <= lng <= 77.3:
             return 0.3 + np.random.random() * 0.6
         return np.random.random() * 0.3
+
     def calculate_airport_distance(self, lat, lng):
         """Calculate distance to nearest airport"""
         # IGI Airport coordinates
         igi_lat, igi_lng = 28.5665, 77.1031
         return np.sqrt((lat - igi_lat)**2 + (lng - igi_lng)**2) * 111  # Convert to km
+
     async def train_models_async(self):
         """Train all models asynchronously"""
         return await asyncio.to_thread(self.train_models)
+
     def train_models(self):
         """Train the source identification models"""
         print("Training advanced source identification models...")
@@ -310,7 +320,7 @@
         y_source_encoded = self.label_encoder.fit_transform(y_source)
         
         # Split data
-        X_train, X_test, y_source_train, y_source_test, y_intensity_train, y_intensity_te
+        X_train, X_test, y_source_train, y_source_test, y_intensity_train, y_intensity_test, y_conf_train, y_conf_test = train_test_split(
             X_scaled, y_source_encoded, y_intensity, y_confidence, 
             test_size=0.2, random_state=42, stratify=y_source_encoded
         )
@@ -372,6 +382,7 @@
         self.save_models()
         
         print("Model training completed successfully!")
+
     def evaluate_models(self, X_test, y_source_test, y_intensity_test, y_conf_test):
         """Evaluate model performance"""
         print("\nModel Performance Evaluation:")
@@ -402,6 +413,7 @@
             'confidence_r2': conf_r2,
             'last_evaluated': datetime.now()
         }
+
     def calculate_feature_importance(self):
         """Calculate and store feature importance"""
         # Source classifier feature importance
@@ -422,12 +434,14 @@
                              key=lambda x: x[1], reverse=True)
         for i, (feature, importance) in enumerate(source_sorted[:10]):
             print(f"{i+1:2d}. {feature:<25} {importance:.4f}")
-    async def identify_sources_async(self, locations, satellite_data=None, ground_data=No
+
+    async def identify_sources_async(self, locations, satellite_data=None, ground_data=None, time_range=None):
         """Identify pollution sources asynchronously"""
         return await asyncio.to_thread(
             self.identify_sources, locations, satellite_data, ground_data, time_range
         )
-    def identify_sources(self, locations, satellite_data=None, ground_data=None, time_ran
+
+    def identify_sources(self, locations, satellite_data=None, ground_data=None, time_range=None):
         """Identify pollution sources for given locations"""
         if not self.is_trained:
             self.load_models()
@@ -438,27 +452,27 @@
         for lat, lng in locations:
             try:
                 # Create feature vector for this location
-                features = self.create_feature_vector(lat, lng, satellite_data, ground_da
+                features = self.create_feature_vector(lat, lng, satellite_data, ground_data, time_range)
                 
                 # Scale features
                 features_scaled = self.scalers['features'].transform([features])
                 
                 # Predict source type
-                source_prob = self.models['source_classifier'].predict_proba(features_sca
-                source_class = self.models['source_classifier'].predict(features_scaled)[
+                source_prob = self.models['source_classifier'].predict_proba(features_scaled)[0]
+                source_class = self.models['source_classifier'].predict(features_scaled)[0]
                 source_type = self.label_encoder.inverse_transform([source_class])[0]
                 
                 # Predict intensity and confidence
-                intensity = max(0, self.models['intensity_regressor'].predict(features_sc
-                confidence = np.clip(self.models['confidence_estimator'].predict(features
+                intensity = max(0, self.models['intensity_regressor'].predict(features_scaled)[0])
+                confidence = np.clip(self.models['confidence_estimator'].predict(features_scaled)[0], 0, 1)
                 
                 # Get top 3 source probabilities
                 top_sources = []
                 for i, prob in enumerate(source_prob):
                     source_name = self.label_encoder.inverse_transform([i])[0]
-                    top_sources.append({'source': source_name, 'probability': float(prob)
+                    top_sources.append({'source': source_name, 'probability': float(prob)})
                 
-                top_sources = sorted(top_sources, key=lambda x: x['probability'], reverse
+                top_sources = sorted(top_sources, key=lambda x: x['probability'], reverse=True)[:3]
                 
                 result = {
                     'location': {'latitude': lat, 'longitude': lng},
@@ -485,7 +499,8 @@
             result['processing_time'] = processing_time / len(locations)
         
         return results
-    def create_feature_vector(self, lat, lng, satellite_data=None, ground_data=None, time
+
+    def create_feature_vector(self, lat, lng, satellite_data=None, ground_data=None, time_range=None):
         """Create feature vector for a specific location and time"""
         now = datetime.now()
         
@@ -517,8 +532,8 @@
                 'aod_550nm': 0.4 * season_factor + np.random.normal(0, 0.1),
                 'aod_470nm': 0.5 * season_factor + np.random.normal(0, 0.1),
                 'angstrom_exponent': 1.2 + np.random.normal(0, 0.2),
-                'fire_radiative_power': np.random.exponential(5) if season_factor > 1.2 e
-                'fire_confidence': np.random.uniform(60, 95) if features.get('fire_radiat
+                'fire_radiative_power': np.random.exponential(5) if season_factor > 1.2 else 0,
+                'fire_confidence': np.random.uniform(60, 95) if features.get('fire_radiative_power', 0) > 10 else 0,
                 'fire_count_5km': np.random.poisson(1) if season_factor > 1.2 else 0
             })
         
@@ -538,12 +553,12 @@
             base_temp = 25 + 15 * np.sin(2 * np.pi * (now.month - 1) / 12)
             features.update({
                 'temperature': base_temp + np.random.normal(0, 3),
-                'humidity': 60 + 20 * np.sin(2 * np.pi * (now.month - 1) / 12) + np.rando
+                'humidity': 60 + 20 * np.sin(2 * np.pi * (now.month - 1) / 12) + np.random.normal(0, 5),
                 'wind_speed': np.random.gamma(2, 1.5),
                 'wind_direction': np.random.uniform(0, 360),
                 'boundary_layer_height': 500 + np.random.uniform(0, 1000),
                 'pressure': 1013 + np.random.normal(0, 5),
-                'precipitation': 0 if now.month not in [6, 7, 8, 9] else np.random.expone
+                'precipitation': 0 if now.month not in [6, 7, 8, 9] else np.random.exponential(1)
             })
         
         # Geographic context features
@@ -563,15 +578,16 @@
         })
         
         return [features[col] for col in self.feature_columns]
+
     def save_models(self):
         """Save trained models and scalers"""
         import os
         os.makedirs('saved_models', exist_ok=True)
         
         # Save models
-        joblib.dump(self.models['source_classifier'], 'saved_models/source_classifier.pkl
-        joblib.dump(self.models['intensity_regressor'], 'saved_models/intensity_regressor
-        joblib.dump(self.models['confidence_estimator'], 'saved_models/confidence_estimat
+        joblib.dump(self.models['source_classifier'], 'saved_models/source_classifier.pkl')
+        joblib.dump(self.models['intensity_regressor'], 'saved_models/intensity_regressor.pkl')
+        joblib.dump(self.models['confidence_estimator'], 'saved_models/confidence_estimator.pkl')
         
         # Save scalers and encoders
         joblib.dump(self.scalers, 'saved_models/scalers.pkl')
@@ -589,12 +605,13 @@
         joblib.dump(metadata, 'saved_models/metadata.pkl')
         
         print("Models saved successfully!")
+
     def load_models(self):
         """Load pre-trained models"""
         try:
-            self.models['source_classifier'] = joblib.load('saved_models/source_classifie
-            self.models['intensity_regressor'] = joblib.load('saved_models/intensity_regr
-            self.models['confidence_estimator'] = joblib.load('saved_models/confidence_es
+            self.models['source_classifier'] = joblib.load('saved_models/source_classifier.pkl')
+            self.models['intensity_regressor'] = joblib.load('saved_models/intensity_regressor.pkl')
+            self.models['confidence_estimator'] = joblib.load('saved_models/confidence_estimator.pkl')
             
             self.scalers = joblib.load('saved_models/scalers.pkl')
             self.label_encoder = joblib.load('saved_models/label_encoder.pkl')
@@ -612,16 +629,20 @@
         except FileNotFoundError:
             print("No saved models found. Training new models...")
             self.train_models()
+
     def is_loaded(self):
         """Check if models are loaded"""
-        return self.is_trained and all(model is not None for model in self.models.values(
+        return self.is_trained and all(model is not None for model in self.models.values())
+
     def get_version(self):
         """Get model version"""
         return self.version
+
     def get_performance_metrics(self):
         """Get model performance metrics"""
         return getattr(self, 'performance_metrics', {})
+
 # Initialize and train if run directly
- if __name__ == "__main__":
- identifier = AdvancedSourceIdentifier()
- identifier.train_models()
+if __name__ == "__main__":
+    identifier = AdvancedSourceIdentifier()
+    identifier.train_models()

@@ -1,38 +1,40 @@
- import numpy as np
- import pandas as pd
- import tensorflow as tf
- from tensorflow.keras.models import Sequential, Model
- from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout, Attention, MultiHeadAttent
- from tensorflow.keras.layers import Input, Concatenate, BatchNormalization, LayerNormaliz
- from tensorflow.keras.optimizers import Adam
- from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
- from sklearn.preprocessing import MinMaxScaler, StandardScaler
- from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
- import joblib
- import asyncio
- from datetime import datetime, timedelta
- import warnings
- warnings.filterwarnings('ignore')
- class AdvancedAQIForecaster:
- def __init__(self, sequence_length=168):  # 1 week of hourly data
- self.sequence_length = sequence_length
- self.models = {
- 'lstm_model': None,
- 'transformer_model': None,
- 'ensemble_model': None
- }
- self.scalers = {
- 'aqi': MinMaxScaler(),
- 'weather': StandardScaler(),
- 'pollutants': MinMaxScaler()
- }
- self.feature_columns = {
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout, Attention, MultiHeadAttention
+from tensorflow.keras.layers import Input, Concatenate, BatchNormalization, LayerNormalization
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import joblib
+import asyncio
+from datetime import datetime, timedelta
+import warnings
+warnings.filterwarnings('ignore')
+
+class AdvancedAQIForecaster:
+    def __init__(self, sequence_length=168):  # 1 week of hourly data
+        self.sequence_length = sequence_length
+        self.models = {
+            'lstm_model': None,
+            'transformer_model': None,
+            'ensemble_model': None
+        }
+        self.scalers = {
+            'aqi': MinMaxScaler(),
+            'weather': StandardScaler(),
+            'pollutants': MinMaxScaler()
+        }
+        
+        self.feature_columns = {
             'aqi_features': ['aqi', 'aqi_category_encoded'],
             'pollutant_features': ['pm25', 'pm10', 'co', 'no2', 'so2', 'o3'],
-            'weather_features': ['temperature', 'humidity', 'wind_speed', 'wind_direction
+            'weather_features': ['temperature', 'humidity', 'wind_speed', 'wind_direction', 
                                'pressure', 'precipitation', 'boundary_layer_height'],
-            'temporal_features': ['hour', 'day_of_week', 'month', 'season', 'is_weekend',
-            'contextual_features': ['traffic_index', 'industrial_activity', 'construction
+            'temporal_features': ['hour', 'day_of_week', 'month', 'season', 'is_weekend', 'is_holiday'],
+            'contextual_features': ['traffic_index', 'industrial_activity', 'construction_activity']
         }
         
         self.forecast_horizons = [1, 6, 12, 24, 48, 72]  # hours
@@ -63,21 +65,21 @@
             weekly_component = self.get_weekly_aqi_pattern(day_of_week)
             
             # Weather-driven component
-            temperature = 25 + 15 * np.sin(2 * np.pi * (timestamp.dayofyear - 80) / 365.2
-            humidity = 60 + 20 * np.sin(2 * np.pi * (timestamp.dayofyear - 80) / 365.25) 
+            temperature = 25 + 15 * np.sin(2 * np.pi * (timestamp.dayofyear - 80) / 365.25) + np.random.normal(0, 3)
+            humidity = 60 + 20 * np.sin(2 * np.pi * (timestamp.dayofyear - 80) / 365.25) + np.random.normal(0, 8)
             humidity = np.clip(humidity, 10, 95)
             
             wind_speed = np.random.gamma(2, 2)
             wind_direction = np.random.uniform(0, 360)
-            pressure = 1013 + np.sin(2 * np.pi * timestamp.dayofyear / 365.25) * 5 + np.r
+            pressure = 1013 + np.sin(2 * np.pi * timestamp.dayofyear / 365.25) * 5 + np.random.normal(0, 3)
             
             # Precipitation (monsoon effect)
             if month in [6, 7, 8, 9]:
-                precipitation = np.random.exponential(3) if np.random.random() < 0.3 else
+                precipitation = np.random.exponential(3) if np.random.random() < 0.3 else 0
             else:
-                precipitation = np.random.exponential(0.5) if np.random.random() < 0.1 el
+                precipitation = np.random.exponential(0.5) if np.random.random() < 0.1 else 0
             
-            boundary_layer_height = 500 + 500 * np.sin(2 * np.pi * hour / 24) + np.random
+            boundary_layer_height = 500 + 500 * np.sin(2 * np.pi * hour / 24) + np.random.normal(0, 100)
             boundary_layer_height = np.clip(boundary_layer_height, 200, 2000)
             
             # Weather impact on AQI
@@ -99,7 +101,7 @@
             special_events = self.generate_special_events(timestamp, month, day_of_week)
             
             # Calculate base AQI
-            base_aqi = (seasonal_component + daily_component + weekly_component) * weathe
+            base_aqi = (seasonal_component + daily_component + weekly_component) * weather_impact
             base_aqi += special_events
             
             # Add noise and persistence
@@ -112,12 +114,12 @@
             base_aqi = np.clip(base_aqi, 10, 500)
             
             # Calculate individual pollutants based on AQI
-            pollutants = self.calculate_pollutants_from_aqi(base_aqi, season, hour, preci
+            pollutants = self.calculate_pollutants_from_aqi(base_aqi, season, hour, precipitation)
             
             # Contextual features
             traffic_index = self.get_traffic_index(hour, day_of_week)
             industrial_activity = self.get_industrial_activity(hour, day_of_week, month)
-            construction_activity = self.get_construction_activity(hour, day_of_week, mon
+            construction_activity = self.get_construction_activity(hour, day_of_week, month)
             
             # Create data point
             data_point = {
@@ -349,7 +351,7 @@
         X, y = [], []
         for i in range(self.sequence_length, len(scaled_features) - forecast_horizon):
             X.append(scaled_features[i-self.sequence_length:i])
-            y.append(aqi_scaled[i:i+forecast_horizon, 0])  # AQI values for forecast hori
+            y.append(aqi_scaled[i:i+forecast_horizon, 0])  # AQI values for forecast horizon
         
         return np.array(X), np.array(y)
     
@@ -604,9 +606,9 @@
         ensemble_predictions = []
         if model_ensemble:
             for model_type in ['lstm', 'transformer', 'ensemble']:
-                if f'{model_type}_{self.get_model_horizon(forecast_hours)}h' in self.mode
-                    model = self.models[f'{model_type}_{self.get_model_horizon(forecast_h
-                    pred = model.predict(current_sequence.reshape(1, *current_sequence.sh
+                if f'{model_type}_{self.get_model_horizon(forecast_hours)}h' in self.models:
+                    model = self.models[f'{model_type}_{self.get_model_horizon(forecast_hours)}h']
+                    pred = model.predict(current_sequence.reshape(1, *current_sequence.shape), verbose=0)[0]
                     pred_aqi = self.inverse_scale_aqi(pred[:forecast_hours])
                     ensemble_predictions.append(pred_aqi)
         
@@ -638,8 +640,8 @@
                 }
             
             if ensemble_predictions:
-                result['ensemble_mean'] = float(np.mean([pred[hour] for pred in ensemble_
-                result['ensemble_std'] = float(np.std([pred[hour] for pred in ensemble_pr
+                result['ensemble_mean'] = float(np.mean([pred[hour] for pred in ensemble_predictions]))
+                result['ensemble_std'] = float(np.std([pred[hour] for pred in ensemble_predictions]))
             
             forecast_results.append(result)
         
@@ -648,7 +650,7 @@
             'model_info': {
                 'model_used': model_key,
                 'model_version': self.version,
-                'ensemble_models': len(ensemble_predictions) if ensemble_predictions else
+                'ensemble_models': len(ensemble_predictions) if ensemble_predictions else 0,
                 'forecast_horizon_hours': forecast_hours
             },
             'overall_confidence': np.mean([f['confidence'] for f in forecast_results]),
@@ -689,13 +691,13 @@
                 'no2': current_aqi * 0.4 + np.random.normal(0, 3),
                 'so2': current_aqi * 0.15 + np.random.normal(0, 2),
                 'o3': current_aqi * 0.2 + np.random.normal(0, 3),
-                'temperature': 25 + 15 * np.sin(2 * np.pi * (month - 1) / 12) + np.random
+                'temperature': 25 + 15 * np.sin(2 * np.pi * (month - 1) / 12) + np.random.normal(0, 3),
                 'humidity': 60 + np.random.normal(0, 10),
                 'wind_speed': np.random.gamma(2, 2),
                 'wind_direction': np.random.uniform(0, 360),
                 'pressure': 1013 + np.random.normal(0, 5),
-                'precipitation': 0 if month not in [6, 7, 8, 9] else np.random.exponentia
-                'boundary_layer_height': 500 + 300 * np.sin(2 * np.pi * hour / 24) + np.r
+                'precipitation': 0 if month not in [6, 7, 8, 9] else np.random.exponential(1),
+                'boundary_layer_height': 500 + 300 * np.sin(2 * np.pi * hour / 24) + np.random.normal(0, 50),
                 'hour': hour,
                 'day_of_week': day_of_week,
                 'month': month,
@@ -703,8 +705,8 @@
                 'is_weekend': 1 if day_of_week >= 5 else 0,
                 'is_holiday': self.is_holiday(timestamp),
                 'traffic_index': self.get_traffic_index(hour, day_of_week),
-                'industrial_activity': self.get_industrial_activity(hour, day_of_week, mo
-                'construction_activity': self.get_construction_activity(hour, day_of_week
+                'industrial_activity': self.get_industrial_activity(hour, day_of_week, month),
+                'construction_activity': self.get_construction_activity(hour, day_of_week, month)
             }
             
             sequence_data.append(features)
@@ -733,7 +735,7 @@
     def inverse_scale_aqi(self, scaled_aqi):
         """Inverse scale AQI predictions"""
         # Create dummy array for inverse transform
-        dummy_features = np.zeros((len(scaled_aqi), len(self.feature_columns['aqi_feature
+        dummy_features = np.zeros((len(scaled_aqi), len(self.feature_columns['aqi_features'])))
         dummy_features[:, 0] = scaled_aqi
         
         # Inverse transform
@@ -851,7 +853,8 @@
     def get_performance_metrics(self):
         """Get model performance metrics"""
         return getattr(self, 'performance_metrics', {})
- # Initialize and train if run directly
- if __name__ == "__main__":
+
+# Initialize and train if run directly
+if __name__ == "__main__":
     forecaster = AdvancedAQIForecaster()
     asyncio.run(forecaster.train_models_async())
