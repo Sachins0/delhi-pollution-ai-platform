@@ -25,11 +25,12 @@ import {
   Visibility,
   VisibilityOff
 } from '@mui/icons-material';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Heatmap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from '../../services/SocketContext';
+import HeatmapLayer from './HeatmapLayer'
 
 // Custom marker icons
 const createCustomIcon = (color, size = 25) => {
@@ -258,7 +259,7 @@ export default function InteractiveMap({ pollutionData = [], className = "" }) {
 
               {/* Heatmap Layer */}
               {showHeatmap && filteredData.length > 0 && (
-                <Heatmap
+                <HeatmapLayer
                   points={generateHeatmapData()}
                   options={{
                     radius: 25,

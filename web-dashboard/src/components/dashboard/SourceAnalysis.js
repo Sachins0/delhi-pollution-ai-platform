@@ -143,7 +143,7 @@ export default function SourceAnalysis({ sources = demoData, timeWindow = 24 }) 
                         label={
                           <span>
                             <b style={{ color: SOURCE_TYPES[entry.type]?.color || "#00e676" }}>
-                              {entry.type.replace("_", " ")}
+                              {entry.type?.replace("_", " ")}
                             </b>
                             : {entry.value} ({((entry.value / total) * 100).toFixed(1)}%)
                           </span>

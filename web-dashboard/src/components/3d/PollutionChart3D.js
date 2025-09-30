@@ -1,111 +1,77 @@
-import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Box, Text, OrbitControls } from '@react-three/drei';
-import { Vector3 } from 'three';
-import * as THREE from 'three';
+import React, { useRef, useEffect } from "react";
+import * as THREE from "three";
 
-function AnimatedBar({ position, height, color, label, value }) {
-  const meshRef = useRef();
-  const targetHeight = height;
-  
-  useFrame((state, delta) => {
-    if (meshRef.current) {
-      // Animate bar growth
-      const currentScale = meshRef.current.scale.y;
-      const newScale = THREE.MathUtils.lerp(currentScale, targetHeight, delta * 2);
-      meshRef.current.scale.y = newScale;
-      
-      // Subtle floating animation
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
+export default function PollutionChart3D() {
+  const mountRef = useRef(null);
+  const meshRef = useRef(null);
+  const frameIdRef = useRef(null);
+
+  useEffect(() => {
+    const width = mountRef.current.clientWidth;
+    const height = mountRef.current.clientHeight;
+    const mountNode = mountRef.current;  
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 5;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Cube Mesh
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial({ color: 0x0077ff });
+    const cube = new THREE.Mesh(geometry, material);
+    meshRef.current = cube;
+    scene.add(cube);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+
+    const clock = new THREE.Clock();
+
+    // Animation Loop
+    const animate = () => {
+      frameIdRef.current = requestAnimationFrame(animate);
+
+      try {
+        const elapsedTime = clock.getElapsedTime();
+
+        if (material.uniforms && material.uniforms.time) {
+          material.uniforms.time.value = elapsedTime;
+        }
+
+        if (meshRef.current) {
+          meshRef.current.rotation.x = elapsedTime * 0.3;
+          meshRef.current.rotation.y = elapsedTime * 0.5;
+        }
+
+        renderer.render(scene, camera);
+      } catch (error) {
+        console.error("Render loop error:", error);
+        cancelAnimationFrame(frameIdRef.current);
+      }
+    };
+
+    animate();
+
+    // Cleanup on unmount
+    return () => {
+      cancelAnimationFrame(frameIdRef.current);
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+      if (mountNode) {
+      mountNode.removeChild(renderer.domElement);
     }
-  });
-  
-  return (
-    <group position={position}>
-      <Box
-        ref={meshRef}
-        args={[0.8, 1, 0.8]}
-        scale={[1, 0, 1]}
-      >
-        <meshLambertMaterial 
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.2}
-          transparent
-          opacity={0.9}
-        />
-      </Box>
-      
-      <Text
-        position={[0, targetHeight + 0.5, 0]}
-        fontSize={0.3}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {value}
-      </Text>
-      
-      <Text
-        position={[0, -0.7, 0]}
-        fontSize={0.2}
-        color="#cccccc"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        {label}
-      </Text>
-    </group>
-  );
-}
+    };
+  }, []);
 
-export default function PollutionChart3D({ data = [] }) {
-  const processedData = useMemo(() => {
-    return data.map((item, index) => {
-      const normalizedHeight = (item.value / 300) * 4; // Normalize to 4 units max height
-      const color = item.value > 200 ? '#ff1744' : 
-                   item.value > 100 ? '#ff9800' : '#4caf50';
-      
-      return {
-        position: [(index - data.length / 2) * 1.5, 0, 0],
-        height: normalizedHeight,
-        color,
-        label: item.label,
-        value: item.value
-      };
-    });
-  }, [data]);
-  
-  return (
-    <div style={{ width: '100%', height: '400px' }}>
-      <Canvas camera={{ position: [0, 3, 8], fov: 60 }}>
-        <ambientLight intensity={0.4} />
-        <pointLight position={[10, 10, 10]} intensity={0.8} />
-        <pointLight position={[-10, 5, -10]} intensity={0.4} color="#4fc3f7" />
-        
-        {processedData.map((bar, index) => (
-          <AnimatedBar
-            key={index}
-            position={bar.position}
-            height={bar.height}
-            color={bar.color}
-            label={bar.label}
-            value={bar.value}
-          />
-        ))}
-        
-        {/* Grid floor */}
-        <gridHelper args={[20, 20, '#333333', '#333333']} position={[0, -1, 0]} />
-        
-        <OrbitControls 
-          enablePan={false}
-          enableZoom={true}
-          enableRotate={true}
-          minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2}
-        />
-      </Canvas>
-    </div>
-  );
+  return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
 }
